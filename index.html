@@ -22,6 +22,14 @@
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button { opacity: 0.4; }
 
+  /* Numbers use a clean sans-serif with tabular figures for legibility,
+     distinct from the serif display font used for labels/headings. */
+  .num, .hero-number, .hero-stat-num, .deadline-days-num, .yen-input, .static-yen, .plan-amount, .day-input {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 8px; }
   .header-left { display: flex; align-items: center; gap: 12px; }
   .logo-mark { width: 34px; height: 34px; border-radius: 8px; background: #2a2622; color: #f4f1ea; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
@@ -73,7 +81,7 @@
   .small-label { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; color: #8a7a63; }
   .yen-wrap { display: flex; align-items: center; gap: 2px; }
   .yen-prefix { font-size: 13px; color: #8a7a63; }
-  .yen-input { font-family: Georgia, serif; font-size: 15px; font-weight: 600; border: none; border-bottom: 1px solid #d8cdba; background: transparent; width: 110px; padding: 2px; font-variant-numeric: tabular-nums; }
+  .yen-input { font-size: 15px; font-weight: 600; border: none; border-bottom: 1px solid #d8cdba; background: transparent; width: 110px; padding: 2px; }
   .static-yen { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: #5c5346; }
   .breakdown-row { display: flex; gap: 6px; justify-content: flex-end; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #a89a80; margin-top: -4px; margin-bottom: 8px; }
   .breakdown-sep { color: #d8cdba; }
