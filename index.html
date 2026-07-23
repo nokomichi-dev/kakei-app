@@ -34,6 +34,7 @@
   .hero-label { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #b8ab93; margin-bottom: 6px; }
   .hero-number { font-size: 40px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .hero-sub { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 13px; color: #d8cfc0; margin-top: 8px; }
+  .hero-breakdown { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; color: #b8ab93; margin-top: 6px; display: flex; gap: 10px; }
   .hero-stats { display: flex; gap: 28px; }
   .hero-stat { text-align: right; }
   .hero-stat-num { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -74,6 +75,8 @@
   .yen-prefix { font-size: 13px; color: #8a7a63; }
   .yen-input { font-family: Georgia, serif; font-size: 15px; font-weight: 600; border: none; border-bottom: 1px solid #d8cdba; background: transparent; width: 110px; padding: 2px; font-variant-numeric: tabular-nums; }
   .static-yen { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: #5c5346; }
+  .breakdown-row { display: flex; gap: 6px; justify-content: flex-end; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #a89a80; margin-top: -4px; margin-bottom: 8px; }
+  .breakdown-sep { color: #d8cdba; }
   .divider { height: 1px; background: #e7dfd0; margin: 10px 0; }
   .status-pill { display: inline-flex; align-items: center; gap: 6px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 999px; }
   .status-bad { background: #f4e0dc; color: #a13d2e; }
@@ -129,6 +132,7 @@
     <div class="hero-label">今月の不足合計</div>
     <div class="hero-number" id="heroNumber">¥0</div>
     <div class="hero-sub" id="heroSub"></div>
+    <div class="hero-breakdown" id="heroBreakdown"></div>
   </div>
   <div class="hero-stats">
     <div class="hero-stat"><div class="hero-stat-num" id="statAccounts">0</div><div class="hero-stat-label">口座</div></div>
@@ -308,10 +312,12 @@
 
   function computeAccountNeeds() {
     var map = {};
-    accounts.forEach(function (a) { map[a.id] = { needed: 0, cards: [], recurring: [], earliestDue: null }; });
+    accounts.forEach(function (a) { map[a.id] = { needed: 0, cardTotal: 0, recurringTotal: 0, cards: [], recurring: [], earliestDue: null }; });
     cards.forEach(function (c) {
       if (!map[c.accountId]) return;
-      map[c.accountId].needed += Number(c.amount) || 0;
+      var amt = Number(c.amount) || 0;
+      map[c.accountId].needed += amt;
+      map[c.accountId].cardTotal += amt;
       map[c.accountId].cards.push(c);
       var due = nextDueDate(c.dueDay);
       if (map[c.accountId].earliestDue === null || due < map[c.accountId].earliestDue) {
@@ -320,7 +326,9 @@
     });
     recurringPayments.forEach(function (p) {
       if (!map[p.accountId]) return;
-      map[p.accountId].needed += Number(p.amount) || 0;
+      var amt2 = Number(p.amount) || 0;
+      map[p.accountId].needed += amt2;
+      map[p.accountId].recurringTotal += amt2;
       map[p.accountId].recurring.push(p);
       var due2 = nextDueDate(p.dueDay);
       if (map[p.accountId].earliestDue === null || due2 < map[p.accountId].earliestDue) {
@@ -333,11 +341,13 @@
   function computeRows() {
     var needs = computeAccountNeeds();
     var rows = accounts.map(function (a) {
-      var info = needs[a.id] || { needed: 0, cards: [], recurring: [], earliestDue: null };
+      var info = needs[a.id] || { needed: 0, cardTotal: 0, recurringTotal: 0, cards: [], recurring: [], earliestDue: null };
       var shortfall = info.needed - Number(a.balance);
       return {
         id: a.id, name: a.name, bank: a.bank, balance: a.balance, freeTransfer: a.freeTransfer,
         needed: info.needed,
+        cardTotal: info.cardTotal,
+        recurringTotal: info.recurringTotal,
         shortfall: shortfall > 0 ? shortfall : 0,
         surplus: shortfall < 0 ? -shortfall : 0,
         cardsForAccount: info.cards,
@@ -472,10 +482,15 @@
 
     document.getElementById("statAccounts").textContent = accounts.length;
     document.getElementById("statCards").textContent = cards.length;
-    document.getElementById("statTotal").textContent = fmtYen(
-      cards.reduce(function (s, c) { return s + (Number(c.amount) || 0); }, 0) +
-      recurringPayments.reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0)
-    );
+    var cardSum = cards.reduce(function (s, c) { return s + (Number(c.amount) || 0); }, 0);
+    var recurringSum = recurringPayments.reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0);
+    document.getElementById("statTotal").textContent = fmtYen(cardSum + recurringSum);
+
+    var heroBreakdown = document.getElementById("heroBreakdown");
+    var breakdownParts = [];
+    if (cardSum > 0) breakdownParts.push("カード計 " + fmtYen(cardSum));
+    if (recurringSum > 0) breakdownParts.push("定期計 " + fmtYen(recurringSum));
+    heroBreakdown.textContent = breakdownParts.join("　\u00b7　");
 
     // deadline banner
     var deadlineArea = document.getElementById("deadlineArea");
@@ -544,6 +559,13 @@
             '<div class="account-row"><label class="small-label">引き落とし予定額</label>' +
               '<div class="static-yen">' + fmtYen(r.needed) + '</div>' +
             '</div>' +
+            (r.cardTotal > 0 || r.recurringTotal > 0
+              ? '<div class="breakdown-row">' +
+                  (r.cardTotal > 0 ? '<span>カード計 ' + fmtYen(r.cardTotal) + '</span>' : '') +
+                  (r.cardTotal > 0 && r.recurringTotal > 0 ? '<span class="breakdown-sep">\u00b7</span>' : '') +
+                  (r.recurringTotal > 0 ? '<span>定期計 ' + fmtYen(r.recurringTotal) + '</span>' : '') +
+                '</div>'
+              : '') +
             '<div class="divider"></div>' +
             statusHtml +
             deadlineHtml +
