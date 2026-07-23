@@ -29,7 +29,7 @@
   .title { font-size: 22px; font-weight: 600; margin: 0; line-height: 1.3; }
   .save-badge { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #2f6b4f; transition: opacity 0.4s ease; white-space: nowrap; opacity: 0; }
 
-  .hero { background: #2a2622; color: #f4f1ea; border-radius: 14px; padding: 26px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 32px; }
+  .hero { background: #2a2622; color: #f4f1ea; border-radius: 14px; padding: 26px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; }
   .hero-big { min-width: 240px; }
   .hero-label { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #b8ab93; margin-bottom: 6px; }
   .hero-number { font-size: 40px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -39,16 +39,35 @@
   .hero-stat-num { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .hero-stat-label { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #b8ab93; margin-top: 2px; }
 
+  /* deadline banner - the signature moment */
+  .deadline-banner { display: flex; align-items: stretch; gap: 0; border-radius: 12px; overflow: hidden; margin-bottom: 32px; border: 1px solid #d8cdba; }
+  .deadline-banner.urgent { border-color: #c9564a; }
+  .deadline-date-block { background: #efe9db; padding: 14px 18px; display: flex; flex-direction: column; justify-content: center; min-width: 96px; text-align: center; flex-shrink: 0; }
+  .deadline-banner.urgent .deadline-date-block { background: #a13d2e; color: #fbeee9; }
+  .deadline-days-num { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .deadline-days-label { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 10.5px; margin-top: 3px; letter-spacing: 0.03em; }
+  .deadline-body { background: #fdfcf9; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex: 1; flex-wrap: wrap; gap: 6px; }
+  .deadline-banner.urgent .deadline-body { background: #f9ece9; }
+  .deadline-text { font-size: 14.5px; font-weight: 600; }
+  .deadline-sub { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; color: #8a7a63; margin-top: 2px; }
+  .deadline-banner.urgent .deadline-sub { color: #a13d2e; }
+  .deadline-fulldate { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; color: #8a7a63; white-space: nowrap; }
+
   .section { margin-bottom: 34px; }
-  .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid #ddd4c4; padding-bottom: 10px; }
+  .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid #ddd4c4; padding-bottom: 10px; flex-wrap: wrap; gap: 8px; }
   .section-title { font-size: 15px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .section-hint { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; color: #8a7a63; margin-top: 2px; }
   .ghost-btn { display: flex; align-items: center; gap: 6px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; font-weight: 600; background: transparent; border: 1px solid #c9bda6; border-radius: 7px; padding: 6px 11px; cursor: pointer; color: #2a2622; }
 
-  .account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
   .account-card { background: #fdfcf9; border: 1px solid #d8cdba; border-radius: 12px; padding: 16px 16px 14px; }
   .account-card.short { border-color: #e3b3ab; }
-  .account-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 6px; }
+  .account-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 6px; }
   .account-name-input { font-family: Georgia, serif; font-size: 15.5px; font-weight: 600; border: none; background: transparent; padding: 2px 0; width: 100%; color: #2a2622; }
+  .account-meta-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .bank-input { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; border: 1px solid #e7dfd0; border-radius: 6px; padding: 3px 7px; background: #f9f6ef; color: #6b6153; width: 110px; }
+  .free-toggle { display: flex; align-items: center; gap: 5px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #6b6153; cursor: pointer; user-select: none; }
+  .free-toggle input { margin: 0; }
   .account-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .small-label { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; color: #8a7a63; }
   .yen-wrap { display: flex; align-items: center; gap: 2px; }
@@ -59,6 +78,8 @@
   .status-pill { display: inline-flex; align-items: center; gap: 6px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 999px; }
   .status-bad { background: #f4e0dc; color: #a13d2e; }
   .status-good { background: #e1ebe3; color: #2f6b4f; }
+  .account-deadline { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; color: #8a7a63; margin-top: 8px; }
+  .account-deadline.urgent { color: #a13d2e; font-weight: 700; }
   .card-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .card-chip { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #6b6153; background: #efe9db; border-radius: 6px; padding: 3px 8px; }
   .empty-state { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 13px; color: #8a7a63; padding: 18px 4px; text-align: center; grid-column: 1 / -1; }
@@ -68,11 +89,12 @@
   .plan-row { display: flex; align-items: center; gap: 12px; background: #fdfcf9; border: 1px solid #d8cdba; border-radius: 10px; padding: 12px 16px; flex-wrap: wrap; }
   .plan-step { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; color: #b8ab93; width: 20px; }
   .plan-from, .plan-to { font-size: 14.5px; font-weight: 600; flex: 1; min-width: 80px; }
+  .plan-free-badge { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 10.5px; font-weight: 700; color: #2f6b4f; background: #e1ebe3; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
   .plan-amount { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: #2a2622; min-width: 110px; text-align: right; }
   .plan-warning { display: flex; align-items: center; gap: 8px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; color: #a13d2e; background: #f4e0dc; border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
 
   .table-wrap { background: #fdfcf9; border: 1px solid #d8cdba; border-radius: 12px; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; min-width: 560px; }
+  table { width: 100%; border-collapse: collapse; min-width: 620px; }
   th { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #8a7a63; text-align: left; padding: 10px 14px; border-bottom: 1px solid #e7dfd0; background: #f4efe4; }
   tr { border-bottom: 1px solid #efe9db; }
   td { padding: 8px 14px; vertical-align: middle; }
@@ -114,22 +136,32 @@
   </div>
 </section>
 
+<div id="deadlineArea"></div>
+
 <section class="section">
   <div class="section-head">
-    <h2 class="section-title">🏦 口座別の状況</h2>
+    <div>
+      <h2 class="section-title">🏦 口座別の状況</h2>
+      <div class="section-hint">銀行名を入れると同一銀行間の振込を自動で無料判定します。「振込手数料が常に無料」の口座はチェックを入れてください。</div>
+    </div>
     <button class="ghost-btn" id="addAccountBtn">＋ 口座を追加</button>
   </div>
   <div class="account-grid" id="accountGrid"></div>
 </section>
 
 <section class="section">
-  <div class="section-head"><h2 class="section-title">➡️ 振込プラン</h2></div>
+  <div class="section-head">
+    <div>
+      <h2 class="section-title">➡️ 振込プラン（手数料無料ルートのみ）</h2>
+      <div class="section-hint">同一銀行内、または振込手数料無料の口座からの移動だけを提案します。</div>
+    </div>
+  </div>
   <div id="planArea"></div>
 </section>
 
 <section class="section">
   <div class="section-head">
-    <h2 class="section-title">💳 クレジットカード（今月の引き落とし額）</h2>
+    <h2 class="section-title">💳 クレジットカード（今月の引き落とし額・引き落とし日）</h2>
     <button class="ghost-btn" id="addCardBtn">＋ カードを追加</button>
   </div>
   <div class="table-wrap">
@@ -148,7 +180,7 @@
   </div>
 </section>
 
-<footer class="footer">毎月、各カードの確定額を入力すると自動で再計算されます。データはこのブラウザに保存されます（サーバーには送信されません）。</footer>
+<footer class="footer">毎月、各カードの確定額と引き落とし日を入力すると自動で再計算されます。データはこのブラウザに保存されます（サーバーには送信されません）。</footer>
 
 <script>
 (function () {
@@ -168,8 +200,8 @@
   }
 
   var defaultAccounts = [
-    { id: "acc1", name: "三菱UFJ銀行", balance: 150000 },
-    { id: "acc2", name: "ゆうちょ銀行", balance: 80000 }
+    { id: "acc1", name: "三菱UFJ銀行", bank: "三菱UFJ銀行", balance: 150000, freeTransfer: false },
+    { id: "acc2", name: "ゆうちょ銀行", bank: "ゆうちょ銀行", balance: 80000, freeTransfer: false }
   ];
   var defaultCards = [
     { id: "card1", name: "楽天カード", accountId: "acc1", dueDay: 27, amount: 62000 },
@@ -181,6 +213,17 @@
   var initial = loadState();
   var accounts = (initial && initial.accounts) || defaultAccounts;
   var cards = (initial && initial.cards) || defaultCards;
+
+  // migrate old data: ensure bank / freeTransfer fields exist
+  accounts = accounts.map(function (a) {
+    return Object.assign({ bank: a.bank || "", freeTransfer: !!a.freeTransfer }, a, {
+      bank: a.bank !== undefined ? a.bank : "",
+      freeTransfer: a.freeTransfer !== undefined ? a.freeTransfer : false
+    });
+  });
+  cards = cards.map(function (c) {
+    return Object.assign({ dueDay: 27 }, c, { dueDay: c.dueDay !== undefined && c.dueDay !== "" ? c.dueDay : 27 });
+  });
 
   function fmtYen(n) {
     var v = Math.round(n);
@@ -204,13 +247,49 @@
     }, 300);
   }
 
+  // ---------- date helpers ----------
+  function todayStart() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  // next occurrence of dueDay (1-31) on/after today
+  function nextDueDate(dueDay) {
+    var day = Number(dueDay);
+    if (!day || day < 1) day = 27;
+    if (day > 31) day = 31;
+    var today = todayStart();
+    var y = today.getFullYear();
+    var m = today.getMonth();
+    function clampToMonth(year, month, d) {
+      var lastDay = new Date(year, month + 1, 0).getDate();
+      return new Date(year, month, Math.min(d, lastDay));
+    }
+    var candidate = clampToMonth(y, m, day);
+    if (candidate < today) {
+      candidate = clampToMonth(y, m + 1, day);
+    }
+    return candidate;
+  }
+  function daysBetween(a, b) {
+    var MS = 24 * 60 * 60 * 1000;
+    return Math.round((b - a) / MS);
+  }
+  function fmtDate(d) {
+    return (d.getMonth() + 1) + "/" + d.getDate();
+  }
+
   function computeAccountNeeds() {
     var map = {};
-    accounts.forEach(function (a) { map[a.id] = { needed: 0, cards: [] }; });
+    accounts.forEach(function (a) { map[a.id] = { needed: 0, cards: [], earliestDue: null }; });
     cards.forEach(function (c) {
       if (!map[c.accountId]) return;
       map[c.accountId].needed += Number(c.amount) || 0;
       map[c.accountId].cards.push(c);
+      var due = nextDueDate(c.dueDay);
+      if (map[c.accountId].earliestDue === null || due < map[c.accountId].earliestDue) {
+        map[c.accountId].earliestDue = due;
+      }
     });
     return map;
   }
@@ -218,49 +297,68 @@
   function computeRows() {
     var needs = computeAccountNeeds();
     var rows = accounts.map(function (a) {
-      var need = (needs[a.id] && needs[a.id].needed) || 0;
-      var shortfall = need - Number(a.balance);
+      var info = needs[a.id] || { needed: 0, cards: [], earliestDue: null };
+      var shortfall = info.needed - Number(a.balance);
       return {
-        id: a.id, name: a.name, balance: a.balance,
-        needed: need,
+        id: a.id, name: a.name, bank: a.bank, balance: a.balance, freeTransfer: a.freeTransfer,
+        needed: info.needed,
         shortfall: shortfall > 0 ? shortfall : 0,
         surplus: shortfall < 0 ? -shortfall : 0,
-        cardsForAccount: (needs[a.id] && needs[a.id].cards) || []
+        cardsForAccount: info.cards,
+        earliestDue: info.earliestDue
       };
     });
     rows.sort(function (x, y) { return y.shortfall - x.shortfall; });
     return rows;
   }
 
+  // free route: same bank, OR giver.freeTransfer === true
+  function isFreeRoute(giverRow, takerRow) {
+    if (giverRow.freeTransfer) return true;
+    if (giverRow.bank && takerRow.bank && giverRow.bank === takerRow.bank) return true;
+    return false;
+  }
+
   function computeTransferPlan(rows) {
     var givers = rows.filter(function (r) { return r.surplus > 0; })
-      .map(function (r) { return { name: r.name, remaining: r.surplus }; });
+      .map(function (r) { return { id: r.id, name: r.name, bank: r.bank, freeTransfer: r.freeTransfer, remaining: r.surplus }; });
     var takers = rows.filter(function (r) { return r.shortfall > 0; })
-      .map(function (r) { return { name: r.name, remaining: r.shortfall }; });
+      .map(function (r) { return { id: r.id, name: r.name, bank: r.bank, remaining: r.shortfall }; });
 
     var plan = [];
-    var gi = 0;
+
     takers.forEach(function (taker) {
       var need = taker.remaining;
-      while (need > 0.5 && gi < givers.length) {
-        var giver = givers[gi];
-        if (giver.remaining <= 0.5) { gi++; continue; }
+      if (need <= 0.5) return;
+      // pass 1: only free-route givers, largest remaining first for fewer hops
+      var eligible = givers
+        .filter(function (g) { return g.remaining > 0.5 && isFreeRoute(g, taker); })
+        .sort(function (a, b) { return b.remaining - a.remaining; });
+
+      eligible.forEach(function (giver) {
+        if (need <= 0.5) return;
         var amt = Math.min(giver.remaining, need);
-        plan.push({ from: giver.name, to: taker.name, amount: amt });
+        plan.push({ from: giver.name, to: taker.name, amount: amt, free: true });
         giver.remaining -= amt;
         need -= amt;
-        if (giver.remaining <= 0.5) gi++;
-      }
+      });
+      taker.remaining = need;
     });
 
     var stillShort = takers.reduce(function (sum, t) {
-      var used = plan.filter(function (p) { return p.to === t.name; })
-        .reduce(function (s, p) { return s + p.amount; }, 0);
-      var remain = t.remaining - used;
-      return sum + (remain > 0.5 ? remain : 0);
+      return sum + (t.remaining > 0.5 ? t.remaining : 0);
     }, 0);
 
     return { plan: plan, stillShort: stillShort };
+  }
+
+  function computeGlobalDeadline(rows) {
+    // among accounts that currently have a shortfall, find the earliest due date
+    var candidates = rows
+      .filter(function (r) { return r.shortfall > 0 && r.earliestDue; })
+      .map(function (r) { return r.earliestDue; });
+    if (candidates.length === 0) return null;
+    return candidates.reduce(function (min, d) { return d < min ? d : min; });
   }
 
   function updateAccount(id, patch) {
@@ -279,7 +377,7 @@
     render();
   }
   function addAccount() {
-    accounts = accounts.concat([{ id: uid("acc"), name: "新しい口座", balance: 0 }]);
+    accounts = accounts.concat([{ id: uid("acc"), name: "新しい口座", bank: "", balance: 0, freeTransfer: false }]);
     persist();
     render();
   }
@@ -313,8 +411,8 @@
     var heroSub = document.getElementById("heroSub");
     if (totalShortfall > 0) {
       heroSub.textContent = transferPlan.stillShort > 0.5
-        ? "口座間の移動だけでは " + fmtYen(transferPlan.stillShort) + " 足りません"
-        : "口座間の移動でまかなえます";
+        ? "無料ルートの移動だけでは " + fmtYen(transferPlan.stillShort) + " 足りません"
+        : "無料ルートの口座間移動でまかなえます";
     } else {
       heroSub.textContent = "すべての口座で残高が足りています";
     }
@@ -323,6 +421,32 @@
     document.getElementById("statCards").textContent = cards.length;
     document.getElementById("statTotal").textContent = fmtYen(cards.reduce(function (s, c) { return s + (Number(c.amount) || 0); }, 0));
 
+    // deadline banner
+    var deadlineArea = document.getElementById("deadlineArea");
+    var deadline = computeGlobalDeadline(rows);
+    if (!deadline) {
+      deadlineArea.innerHTML = "";
+    } else {
+      var today = todayStart();
+      var diffDays = daysBetween(today, deadline);
+      var urgent = diffDays <= 3;
+      var daysLabel = diffDays === 0 ? "本日" : (diffDays < 0 ? (Math.abs(diffDays) + "日超過") : (diffDays + "日後"));
+      deadlineArea.innerHTML =
+        '<div class="deadline-banner' + (urgent ? ' urgent' : '') + '">' +
+          '<div class="deadline-date-block">' +
+            '<div class="deadline-days-num">' + daysLabel + '</div>' +
+            '<div class="deadline-days-label">入金締切まで</div>' +
+          '</div>' +
+          '<div class="deadline-body">' +
+            '<div>' +
+              '<div class="deadline-text">' + (urgent ? '\u26a0\ufe0f もうすぐ引き落としです' : '次の引き落としに向けて準備を') + '</div>' +
+              '<div class="deadline-sub">不足している口座があります。この日までに入金・振込を済ませてください。</div>' +
+            '</div>' +
+            '<div class="deadline-fulldate">' + fmtDate(deadline) + ' 締切</div>' +
+          '</div>' +
+        '</div>';
+    }
+
     // account grid
     var grid = document.getElementById("accountGrid");
     if (rows.length === 0) {
@@ -330,16 +454,30 @@
     } else {
       grid.innerHTML = rows.map(function (r) {
         var chips = r.cardsForAccount.map(function (c) {
-          return '<span class="card-chip">' + escapeHtml(c.name) + ' \u00b7 ' + fmtYen(c.amount) + '</span>';
+          return '<span class="card-chip">' + escapeHtml(c.name) + ' \u00b7 ' + fmtYen(c.amount) + ' \u00b7 ' + c.dueDay + '日</span>';
         }).join("");
         var statusHtml = r.shortfall > 0
           ? '<div class="status-pill status-bad">\u26a0\ufe0f ' + fmtYen(r.shortfall) + ' 不足</div>'
           : '<div class="status-pill status-good">\u2705 ' + (r.surplus > 0 ? fmtYen(r.surplus) + ' 余裕あり' : 'ちょうど足りる') + '</div>';
+
+        var deadlineHtml = "";
+        if (r.shortfall > 0 && r.earliestDue) {
+          var today = todayStart();
+          var dd = daysBetween(today, r.earliestDue);
+          var isUrgent = dd <= 3;
+          var ddLabel = dd === 0 ? "本日" : (dd < 0 ? Math.abs(dd) + "日超過" : "あと" + dd + "日");
+          deadlineHtml = '<div class="account-deadline' + (isUrgent ? ' urgent' : '') + '">\u23f0 入金締切: ' + fmtDate(r.earliestDue) + '（' + ddLabel + '）</div>';
+        }
+
         return (
           '<div class="account-card' + (r.shortfall > 0 ? ' short' : '') + '" data-id="' + r.id + '">' +
             '<div class="account-card-top">' +
               '<input class="account-name-input" data-role="acc-name" data-id="' + r.id + '" value="' + escapeHtml(r.name) + '" />' +
               '<button class="icon-btn" data-role="acc-remove" data-id="' + r.id + '" aria-label="口座を削除">\u2715</button>' +
+            '</div>' +
+            '<div class="account-meta-row">' +
+              '<input class="bank-input" data-role="acc-bank" data-id="' + r.id + '" placeholder="銀行名" value="' + escapeHtml(r.bank || "") + '" />' +
+              '<label class="free-toggle"><input type="checkbox" data-role="acc-free" data-id="' + r.id + '"' + (r.freeTransfer ? ' checked' : '') + ' />振込手数料無料</label>' +
             '</div>' +
             '<div class="account-row"><label class="small-label">現在残高</label>' +
               '<div class="yen-wrap"><span class="yen-prefix">\u00a5</span>' +
@@ -350,6 +488,7 @@
             '</div>' +
             '<div class="divider"></div>' +
             statusHtml +
+            deadlineHtml +
             (chips ? '<div class="card-chips">' + chips + '</div>' : '') +
           '</div>'
         );
@@ -361,7 +500,7 @@
     var html = "";
     if (transferPlan.plan.length === 0) {
       html += '<div class="plan-empty">' +
-        (totalShortfall > 0 ? "口座間で移動できる余裕がありません。入金が必要です。" : "振込は不要です。すべての口座で足りています。") +
+        (totalShortfall > 0 ? "無料ルートで移動できる余裕がありません。入金が必要です。" : "振込は不要です。すべての口座で足りています。") +
         '</div>';
     } else {
       html += '<div class="plan-list">' + transferPlan.plan.map(function (p, i) {
@@ -370,12 +509,13 @@
           '<span class="plan-from">' + escapeHtml(p.from) + '</span>' +
           '<span>\u2192</span>' +
           '<span class="plan-to">' + escapeHtml(p.to) + '</span>' +
+          '<span class="plan-free-badge">手数料無料</span>' +
           '<span class="plan-amount">' + fmtYen(p.amount) + '</span>' +
         '</div>';
       }).join("") + '</div>';
     }
     if (transferPlan.stillShort > 0.5) {
-      html += '<div class="plan-warning">\u26a0\ufe0f 振込プランを実行しても、あと ' + fmtYen(transferPlan.stillShort) + ' が全体で不足しています。入金するか支出を見直してください。</div>';
+      html += '<div class="plan-warning">\u26a0\ufe0f 無料ルートの振込では、あと ' + fmtYen(transferPlan.stillShort) + ' が不足しています。手数料をかけて振り込むか、入金してください。</div>';
     }
     planArea.innerHTML = html;
 
@@ -406,6 +546,12 @@
   function bindEvents() {
     document.querySelectorAll('[data-role="acc-name"]').forEach(function (el) {
       el.oninput = function () { updateAccount(el.dataset.id, { name: el.value }); };
+    });
+    document.querySelectorAll('[data-role="acc-bank"]').forEach(function (el) {
+      el.oninput = function () { updateAccount(el.dataset.id, { bank: el.value }); };
+    });
+    document.querySelectorAll('[data-role="acc-free"]').forEach(function (el) {
+      el.onchange = function () { updateAccount(el.dataset.id, { freeTransfer: el.checked }); };
     });
     document.querySelectorAll('[data-role="acc-balance"]').forEach(function (el) {
       el.oninput = function () { updateAccount(el.dataset.id, { balance: el.value === "" ? 0 : Number(el.value) }); };
