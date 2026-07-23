@@ -82,6 +82,7 @@
   .account-deadline.urgent { color: #a13d2e; font-weight: 700; }
   .card-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .card-chip { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #6b6153; background: #efe9db; border-radius: 6px; padding: 3px 8px; }
+  .card-chip.recurring-chip { background: #e6e0d0; border: 1px dashed #c9bda6; }
   .empty-state { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 13px; color: #8a7a63; padding: 18px 4px; text-align: center; grid-column: 1 / -1; }
 
   .plan-empty { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 13px; color: #8a7a63; padding: 12px 2px; }
@@ -180,7 +181,31 @@
   </div>
 </section>
 
-<footer class="footer">毎月、各カードの確定額と引き落とし日を入力すると自動で再計算されます。データはこのブラウザに保存されます（サーバーには送信されません）。</footer>
+<section class="section">
+  <div class="section-head">
+    <div>
+      <h2 class="section-title">🏠 定期引き落とし（ローン・習い事など）</h2>
+      <div class="section-hint">住宅ローン・車のローン・習い事の月謝など。金額は毎月クリアされず、変更しない限りそのまま残ります。</div>
+    </div>
+    <button class="ghost-btn" id="addRecurringBtn">＋ 追加</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>名称</th>
+          <th>引き落とし口座</th>
+          <th>引き落とし日</th>
+          <th style="text-align:right;">毎月の金額</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="recurringTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<footer class="footer">カードの引き落とし額は毎月手入力、定期引き落とし（ローン・習い事など）は変更しない限りそのまま残ります。データはこのブラウザに保存されます（サーバーには送信されません）。</footer>
 
 <script>
 (function () {
@@ -209,10 +234,12 @@
     { id: "card3", name: "イオンカード", accountId: "acc2", dueDay: 2, amount: 15000 },
     { id: "card4", name: "PayPayカード", accountId: "acc2", dueDay: 27, amount: 21000 }
   ];
+  var defaultRecurring = [];
 
   var initial = loadState();
   var accounts = (initial && initial.accounts) || defaultAccounts;
   var cards = (initial && initial.cards) || defaultCards;
+  var recurringPayments = (initial && initial.recurringPayments) || defaultRecurring;
 
   // migrate old data: ensure bank / freeTransfer fields exist
   accounts = accounts.map(function (a) {
@@ -240,7 +267,7 @@
   function persist() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
-      saveState({ accounts: accounts, cards: cards });
+      saveState({ accounts: accounts, cards: cards, recurringPayments: recurringPayments });
       var badge = document.getElementById("saveBadge");
       badge.style.opacity = "1";
       setTimeout(function () { badge.style.opacity = "0"; }, 900);
@@ -281,7 +308,7 @@
 
   function computeAccountNeeds() {
     var map = {};
-    accounts.forEach(function (a) { map[a.id] = { needed: 0, cards: [], earliestDue: null }; });
+    accounts.forEach(function (a) { map[a.id] = { needed: 0, cards: [], recurring: [], earliestDue: null }; });
     cards.forEach(function (c) {
       if (!map[c.accountId]) return;
       map[c.accountId].needed += Number(c.amount) || 0;
@@ -291,13 +318,22 @@
         map[c.accountId].earliestDue = due;
       }
     });
+    recurringPayments.forEach(function (p) {
+      if (!map[p.accountId]) return;
+      map[p.accountId].needed += Number(p.amount) || 0;
+      map[p.accountId].recurring.push(p);
+      var due2 = nextDueDate(p.dueDay);
+      if (map[p.accountId].earliestDue === null || due2 < map[p.accountId].earliestDue) {
+        map[p.accountId].earliestDue = due2;
+      }
+    });
     return map;
   }
 
   function computeRows() {
     var needs = computeAccountNeeds();
     var rows = accounts.map(function (a) {
-      var info = needs[a.id] || { needed: 0, cards: [], earliestDue: null };
+      var info = needs[a.id] || { needed: 0, cards: [], recurring: [], earliestDue: null };
       var shortfall = info.needed - Number(a.balance);
       return {
         id: a.id, name: a.name, bank: a.bank, balance: a.balance, freeTransfer: a.freeTransfer,
@@ -305,6 +341,7 @@
         shortfall: shortfall > 0 ? shortfall : 0,
         surplus: shortfall < 0 ? -shortfall : 0,
         cardsForAccount: info.cards,
+        recurringForAccount: info.recurring,
         earliestDue: info.earliestDue
       };
     });
@@ -398,6 +435,22 @@
     render();
   }
 
+  function updateRecurring(id, patch, shouldRender) {
+    recurringPayments = recurringPayments.map(function (p) { return p.id === id ? Object.assign({}, p, patch) : p; });
+    persist();
+    if (shouldRender !== false) render();
+  }
+  function removeRecurring(id) {
+    recurringPayments = recurringPayments.filter(function (p) { return p.id !== id; });
+    persist();
+    render();
+  }
+  function addRecurring() {
+    recurringPayments = recurringPayments.concat([{ id: uid("rec"), name: "新しい定期引き落とし", accountId: (accounts[0] && accounts[0].id) || "", dueDay: 27, amount: 0 }]);
+    persist();
+    render();
+  }
+
   function render() {
     var rows = computeRows();
     var totalShortfall = rows.reduce(function (s, r) { return s + r.shortfall; }, 0);
@@ -419,7 +472,10 @@
 
     document.getElementById("statAccounts").textContent = accounts.length;
     document.getElementById("statCards").textContent = cards.length;
-    document.getElementById("statTotal").textContent = fmtYen(cards.reduce(function (s, c) { return s + (Number(c.amount) || 0); }, 0));
+    document.getElementById("statTotal").textContent = fmtYen(
+      cards.reduce(function (s, c) { return s + (Number(c.amount) || 0); }, 0) +
+      recurringPayments.reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0)
+    );
 
     // deadline banner
     var deadlineArea = document.getElementById("deadlineArea");
@@ -455,7 +511,9 @@
       grid.innerHTML = rows.map(function (r) {
         var chips = r.cardsForAccount.map(function (c) {
           return '<span class="card-chip">' + escapeHtml(c.name) + ' \u00b7 ' + fmtYen(c.amount) + ' \u00b7 ' + c.dueDay + '日</span>';
-        }).join("");
+        }).concat(r.recurringForAccount.map(function (p) {
+          return '<span class="card-chip recurring-chip">' + escapeHtml(p.name) + ' \u00b7 ' + fmtYen(p.amount) + ' \u00b7 ' + p.dueDay + '日</span>';
+        })).join("");
         var statusHtml = r.shortfall > 0
           ? '<div class="status-pill status-bad">\u26a0\ufe0f ' + fmtYen(r.shortfall) + ' 不足</div>'
           : '<div class="status-pill status-good">\u2705 ' + (r.surplus > 0 ? fmtYen(r.surplus) + ' 余裕あり' : 'ちょうど足りる') + '</div>';
@@ -540,6 +598,27 @@
       }).join("");
     }
 
+    // recurring payments table
+    var recTbody = document.getElementById("recurringTableBody");
+    if (recurringPayments.length === 0) {
+      recTbody.innerHTML = '<tr><td colspan="5" class="empty-state">登録がまだありません。住宅ローンや習い事などを「追加」から登録してください。</td></tr>';
+    } else {
+      recTbody.innerHTML = recurringPayments.map(function (p) {
+        var options = '<option value="">未設定</option>' + accounts.map(function (a) {
+          return '<option value="' + a.id + '"' + (a.id === p.accountId ? ' selected' : '') + '>' + escapeHtml(a.name) + '</option>';
+        }).join("");
+        return (
+          '<tr>' +
+            '<td><input class="table-input" data-role="rec-name" data-id="' + p.id + '" value="' + escapeHtml(p.name) + '" /></td>' +
+            '<td><select class="table-select" data-role="rec-account" data-id="' + p.id + '">' + options + '</select></td>' +
+            '<td><div class="day-wrap"><input type="number" min="1" max="31" class="day-input" data-role="rec-day" data-id="' + p.id + '" value="' + p.dueDay + '" /><span class="day-suffix">日</span></div></td>' +
+            '<td style="text-align:right;"><div class="yen-wrap" style="justify-content:flex-end;"><span class="yen-prefix">\u00a5</span><input type="number" class="yen-input" style="text-align:right;" data-role="rec-amount" data-id="' + p.id + '" value="' + p.amount + '" /></div></td>' +
+            '<td style="width:36px;"><button class="icon-btn" data-role="rec-remove" data-id="' + p.id + '" aria-label="削除">\u2715</button></td>' +
+          '</tr>'
+        );
+      }).join("");
+    }
+
     bindEvents();
   }
 
@@ -587,10 +666,28 @@
     document.querySelectorAll('[data-role="card-remove"]').forEach(function (el) {
       el.onclick = function () { removeCard(el.dataset.id); };
     });
+    document.querySelectorAll('[data-role="rec-name"]').forEach(function (el) {
+      bindTextField(el, function (val) { updateRecurring(el.dataset.id, { name: val }, false); });
+    });
+    document.querySelectorAll('[data-role="rec-account"]').forEach(function (el) {
+      el.onchange = function () { updateRecurring(el.dataset.id, { accountId: el.value }); };
+    });
+    document.querySelectorAll('[data-role="rec-day"]').forEach(function (el) {
+      el.oninput = function () { updateRecurring(el.dataset.id, { dueDay: el.value === "" ? "" : Number(el.value) }, false); };
+      el.onblur = function () { render(); };
+    });
+    document.querySelectorAll('[data-role="rec-amount"]').forEach(function (el) {
+      el.oninput = function () { updateRecurring(el.dataset.id, { amount: el.value === "" ? 0 : Number(el.value) }, false); };
+      el.onblur = function () { render(); };
+    });
+    document.querySelectorAll('[data-role="rec-remove"]').forEach(function (el) {
+      el.onclick = function () { removeRecurring(el.dataset.id); };
+    });
   }
 
   document.getElementById("addAccountBtn").onclick = addAccount;
   document.getElementById("addCardBtn").onclick = addCard;
+  document.getElementById("addRecurringBtn").onclick = addRecurring;
 
   render();
 })();
