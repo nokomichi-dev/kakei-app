@@ -543,28 +543,22 @@
     bindEvents();
   }
 
-  // Track IME composition state per-element so we don't re-render (and blow away
-  // the input's cursor/composition) while the user is still composing Japanese text.
-  var composingEls = new WeakSet();
-
+  // Text fields (which may contain Japanese IME composition) only update the
+  // underlying state on every keystroke, WITHOUT re-rendering the DOM (which
+  // would destroy the input's cursor/composition state on iOS Safari, where
+  // compositionstart/compositionend do not reliably fire). Re-render only
+  // happens once the field loses focus.
   function bindTextField(el, applyFn) {
-    el.addEventListener("compositionstart", function () { composingEls.add(el); });
-    el.addEventListener("compositionend", function () {
-      composingEls.delete(el);
-      applyFn(el.value, true); // commit + allow re-render now that composition finished
-    });
-    el.addEventListener("input", function () {
-      var isComposing = composingEls.has(el) || el.isComposing;
-      applyFn(el.value, !isComposing);
-    });
+    el.addEventListener("input", function () { applyFn(el.value); });
+    el.addEventListener("blur", function () { render(); });
   }
 
   function bindEvents() {
     document.querySelectorAll('[data-role="acc-name"]').forEach(function (el) {
-      bindTextField(el, function (val, shouldRender) { updateAccount(el.dataset.id, { name: val }, shouldRender); });
+      bindTextField(el, function (val) { updateAccount(el.dataset.id, { name: val }, false); });
     });
     document.querySelectorAll('[data-role="acc-bank"]').forEach(function (el) {
-      bindTextField(el, function (val, shouldRender) { updateAccount(el.dataset.id, { bank: val }, shouldRender); });
+      bindTextField(el, function (val) { updateAccount(el.dataset.id, { bank: val }, false); });
     });
     document.querySelectorAll('[data-role="acc-free"]').forEach(function (el) {
       el.onchange = function () { updateAccount(el.dataset.id, { freeTransfer: el.checked }); };
@@ -577,7 +571,7 @@
       el.onclick = function () { removeAccount(el.dataset.id); };
     });
     document.querySelectorAll('[data-role="card-name"]').forEach(function (el) {
-      bindTextField(el, function (val, shouldRender) { updateCard(el.dataset.id, { name: val }, shouldRender); });
+      bindTextField(el, function (val) { updateCard(el.dataset.id, { name: val }, false); });
     });
     document.querySelectorAll('[data-role="card-account"]').forEach(function (el) {
       el.onchange = function () { updateCard(el.dataset.id, { accountId: el.value }); };
