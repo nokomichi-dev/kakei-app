@@ -361,10 +361,10 @@
     return candidates.reduce(function (min, d) { return d < min ? d : min; });
   }
 
-  function updateAccount(id, patch) {
+  function updateAccount(id, patch, shouldRender) {
     accounts = accounts.map(function (a) { return a.id === id ? Object.assign({}, a, patch) : a; });
     persist();
-    render();
+    if (shouldRender !== false) render();
   }
   function removeAccount(id) {
     var linked = cards.some(function (c) { return c.accountId === id; });
@@ -382,10 +382,10 @@
     render();
   }
 
-  function updateCard(id, patch) {
+  function updateCard(id, patch, shouldRender) {
     cards = cards.map(function (c) { return c.id === id ? Object.assign({}, c, patch) : c; });
     persist();
-    render();
+    if (shouldRender !== false) render();
   }
   function removeCard(id) {
     cards = cards.filter(function (c) { return c.id !== id; });
@@ -543,33 +543,52 @@
     bindEvents();
   }
 
+  // Track IME composition state per-element so we don't re-render (and blow away
+  // the input's cursor/composition) while the user is still composing Japanese text.
+  var composingEls = new WeakSet();
+
+  function bindTextField(el, applyFn) {
+    el.addEventListener("compositionstart", function () { composingEls.add(el); });
+    el.addEventListener("compositionend", function () {
+      composingEls.delete(el);
+      applyFn(el.value, true); // commit + allow re-render now that composition finished
+    });
+    el.addEventListener("input", function () {
+      var isComposing = composingEls.has(el) || el.isComposing;
+      applyFn(el.value, !isComposing);
+    });
+  }
+
   function bindEvents() {
     document.querySelectorAll('[data-role="acc-name"]').forEach(function (el) {
-      el.oninput = function () { updateAccount(el.dataset.id, { name: el.value }); };
+      bindTextField(el, function (val, shouldRender) { updateAccount(el.dataset.id, { name: val }, shouldRender); });
     });
     document.querySelectorAll('[data-role="acc-bank"]').forEach(function (el) {
-      el.oninput = function () { updateAccount(el.dataset.id, { bank: el.value }); };
+      bindTextField(el, function (val, shouldRender) { updateAccount(el.dataset.id, { bank: val }, shouldRender); });
     });
     document.querySelectorAll('[data-role="acc-free"]').forEach(function (el) {
       el.onchange = function () { updateAccount(el.dataset.id, { freeTransfer: el.checked }); };
     });
     document.querySelectorAll('[data-role="acc-balance"]').forEach(function (el) {
-      el.oninput = function () { updateAccount(el.dataset.id, { balance: el.value === "" ? 0 : Number(el.value) }); };
+      el.oninput = function () { updateAccount(el.dataset.id, { balance: el.value === "" ? 0 : Number(el.value) }, false); };
+      el.onblur = function () { render(); };
     });
     document.querySelectorAll('[data-role="acc-remove"]').forEach(function (el) {
       el.onclick = function () { removeAccount(el.dataset.id); };
     });
     document.querySelectorAll('[data-role="card-name"]').forEach(function (el) {
-      el.oninput = function () { updateCard(el.dataset.id, { name: el.value }); };
+      bindTextField(el, function (val, shouldRender) { updateCard(el.dataset.id, { name: val }, shouldRender); });
     });
     document.querySelectorAll('[data-role="card-account"]').forEach(function (el) {
       el.onchange = function () { updateCard(el.dataset.id, { accountId: el.value }); };
     });
     document.querySelectorAll('[data-role="card-day"]').forEach(function (el) {
-      el.oninput = function () { updateCard(el.dataset.id, { dueDay: el.value === "" ? "" : Number(el.value) }); };
+      el.oninput = function () { updateCard(el.dataset.id, { dueDay: el.value === "" ? "" : Number(el.value) }, false); };
+      el.onblur = function () { render(); };
     });
     document.querySelectorAll('[data-role="card-amount"]').forEach(function (el) {
-      el.oninput = function () { updateCard(el.dataset.id, { amount: el.value === "" ? 0 : Number(el.value) }); };
+      el.oninput = function () { updateCard(el.dataset.id, { amount: el.value === "" ? 0 : Number(el.value) }, false); };
+      el.onblur = function () { render(); };
     });
     document.querySelectorAll('[data-role="card-remove"]').forEach(function (el) {
       el.onclick = function () { removeCard(el.dataset.id); };
