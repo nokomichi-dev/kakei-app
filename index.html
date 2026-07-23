@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>資金繰りダッシュボード</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #f4f1ea; }
+  input:focus, select:focus, button:focus {
+    outline: 2px solid #8a7a63;
+    outline-offset: 1px;
+  }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button {
+    opacity: 0.4;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+// lightweight inline icons (no external icon lib needed)
+const Icon = ({ path, size = 16, style = {} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" style={style}>
+    {path}
+  </svg>
+);
+const IconPlus = (p) => <Icon {...p} path={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />;
+const IconTrash = (p) => <Icon {...p} path={<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></>} />;
+const IconArrowRight = (p) => <Icon {...p} path={<><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>} />;
+const IconLandmark = (p) => <Icon {...p} path={<><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></>} />;
+const IconCard = (p) => <Icon {...p} path={<><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>} />;
+const IconWarning = (p) => <Icon {...p} path={<><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>} />;
+const IconCheck = (p) => <Icon {...p} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />;
+const IconWallet = (p) => <Icon {...p} path={<><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/></>} />;
+
+const STORE_KEY = "kakei-state-v1";
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+function saveState(state) {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  } catch (e) { console.error("save failed", e); }
+}
+
+const defaultAccounts = [
+  { id: "acc1", name: "三菱UFJ銀行", balance: 150000 },
+  { id: "acc2", name: "ゆうちょ銀行", balance: 80000 },
+];
+const defaultCards = [
+  { id: "card1", name: "楽天カード", accountId: "acc1", dueDay: 27, amount: 62000 },
+  { id: "card2", name: "三井住友カード", accountId: "acc1", dueDay: 26, amount: 38000 },
+  { id: "card3", name: "イオンカード", accountId: "acc2", dueDay: 2, amount: 15000 },
+  { id: "card4", name: "PayPayカード", accountId: "acc2", dueDay: 27, amount: 21000 },
+];
+
+function fmtYen(n) {
+  const v = Math.round(n);
+  return (v < 0 ? "\u2212" : "") + "\u00a5" + Math.abs(v).toLocaleString("ja-JP");
+}
+function uid(prefix) { return prefix + "_" + Math.random().toString(36).slice(2, 9); }
+
+function App() {
+  const initial = loadState();
+  const [accounts, setAccounts] = useState(initial?.accounts || defaultAccounts);
+  const [cards, setCards] = useState(initial?.cards || defaultCards);
+  const [saveFlash, setSaveFlash] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveState({ accounts, cards });
+      setSaveFlash(true);
+      setTimeout(() => setSaveFlash(false), 900);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [accounts, cards]);
+
+  const accountNeeds = useMemo(() => {
+    const map = {};
+    for (const a of accounts) map[a.id] = { needed: 0, cards: [] };
+    for (const c of cards) {
+      if (!map[c.accountId]) continue;
+      map[c.accountId].needed += Number(c.amount) || 0;
+      map[c.accountId].cards.push(c);
+    }
+    return map;
+  }, [accounts, cards]);
+
+  const rows = useMemo(() => {
+    return accounts.map((a) => {
+      const need = accountNeeds[a.id]?.needed || 0;
+      const shortfall = need - Number(a.balance);
+      return {
+        ...a, needed: need,
+        shortfall: shortfall > 0 ? shortfall : 0,
+        surplus: shortfall < 0 ? -shortfall : 0,
+        cardsForAccount: accountNeeds[a.id]?.cards || [],
+      };
+    }).sort((x, y) => y.shortfall - x.shortfall);
+  }, [accounts, accountNeeds]);
+
+  const transferPlan = useMemo(() => {
+    const givers = rows.filter((r) => r.surplus > 0).map((r) => ({ id: r.id, name: r.name, remaining: r.surplus }));
+    const takers = rows.filter((r) => r.shortfall > 0).map((r) => ({ id: r.id, name: r.name, remaining: r.shortfall }));
+    const plan = [];
+    let gi = 0;
+    for (const taker of takers) {
+      let need = taker.remaining;
+      while (need > 0.5 && gi < givers.length) {
+        const giver = givers[gi];
+        if (giver.remaining <= 0.5) { gi++; continue; }
+        const amt = Math.min(giver.remaining, need);
+        plan.push({ from: giver.name, to: taker.name, amount: amt });
+        giver.remaining -= amt; need -= amt;
+        if (giver.remaining <= 0.5) gi++;
+      }
+    }
+    const stillShort = takers.reduce((sum, t) => {
+      const usedByPlan = plan.filter((p) => p.to === t.name).reduce((s, p) => s + p.amount, 0);
+      const remain = t.remaining - usedByPlan;
+      return sum + (remain > 0.5 ? remain : 0);
+    }, 0);
+    return { plan, stillShort };
+  }, [rows]);
+
+  const totalShortfall = rows.reduce((s, r) => s + r.shortfall, 0);
+
+  const addAccount = () => setAccounts((prev) => [...prev, { id: uid("acc"), name: "新しい口座", balance: 0 }]);
+  const updateAccount = (id, patch) => setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  const removeAccount = (id) => {
+    if (cards.some((c) => c.accountId === id)) {
+      if (!window.confirm("この口座に紐づくカードもあります。口座を削除するとカードの紐付けが外れます。続けますか？")) return;
+      setCards((prev) => prev.map((c) => (c.accountId === id ? { ...c, accountId: "" } : c)));
+    }
+    setAccounts((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const addCard = () => setCards((prev) => [...prev, { id: uid("card"), name: "新しいカード", accountId: accounts[0]?.id || "", dueDay: 27, amount: 0 }]);
+  const updateCard = (id, patch) => setCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const removeCard = (id) => setCards((prev) => prev.filter((c) => c.id !== id));
+
+  return (
+    <div style={styles.page}>
+      <header style={styles.header}>
+        <div style={styles.headerLeft}>
+          <div style={styles.logoMark}><IconWallet size={18} /></div>
+          <div>
+            <div style={styles.eyebrow}>資金繰りダッシュボード</div>
+            <h1 style={styles.title}>今月の引き落とし、足りてる？</h1>
+          </div>
+        </div>
+        <div style={{ ...styles.saveBadge, opacity: saveFlash ? 1 : 0 }}>保存しました</div>
+      </header>
+
+      <section style={styles.hero}>
+        <div style={styles.heroBig}>
+          <div style={styles.heroLabel}>今月の不足合計</div>
+          <div style={{ ...styles.heroNumber, color: totalShortfall > 0 ? "#b23b2e" : "#2f6b4f" }}>
+            {fmtYen(totalShortfall)}
+          </div>
+          <div style={styles.heroSub}>
+            {totalShortfall > 0
+              ? (transferPlan.stillShort > 0.5
+                  ? `口座間の移動だけでは ${fmtYen(transferPlan.stillShort)} 足りません`
+                  : "口座間の移動でまかなえます")
+              : "すべての口座で残高が足りています"}
+          </div>
+        </div>
+        <div style={styles.heroStats}>
+          <div style={styles.heroStat}>
+            <div style={styles.heroStatNum}>{accounts.length}</div>
+            <div style={styles.heroStatLabel}>口座</div>
+          </div>
+          <div style={styles.heroStat}>
+            <div style={styles.heroStatNum}>{cards.length}</div>
+            <div style={styles.heroStatLabel}>カード</div>
+          </div>
+          <div style={styles.heroStat}>
+            <div style={styles.heroStatNum}>{fmtYen(cards.reduce((s, c) => s + (Number(c.amount) || 0), 0))}</div>
+            <div style={styles.heroStatLabel}>引き落とし総額</div>
+          </div>
+        </div>
+      </section>
+
+      <section style={styles.section}>
+        <div style={styles.sectionHead}>
+          <h2 style={styles.sectionTitle}><IconLandmark size={16} style={{ marginRight: 8, position: "relative", top: 2 }} />口座別の状況</h2>
+          <button style={styles.ghostBtn} onClick={addAccount}><IconPlus size={14} /> 口座を追加</button>
+        </div>
+        <div style={styles.accountGrid}>
+          {rows.map((r) => (
+            <div key={r.id} style={{ ...styles.accountCard, borderColor: r.shortfall > 0 ? "#e3b3ab" : "#cfe0d5" }}>
+              <div style={styles.accountCardTop}>
+                <input style={styles.accountNameInput} value={r.name} onChange={(e) => updateAccount(r.id, { name: e.target.value })} />
+                <button style={styles.iconBtn} onClick={() => removeAccount(r.id)} aria-label="口座を削除"><IconTrash size={14} /></button>
+              </div>
+              <div style={styles.accountRow}>
+                <label style={styles.smallLabel}>現在残高</label>
+                <div style={styles.yenInputWrap}>
+                  <span style={styles.yenPrefix}>¥</span>
+                  <input type="number" style={styles.yenInput} value={r.balance}
+                    onChange={(e) => updateAccount(r.id, { balance: e.target.value === "" ? 0 : Number(e.target.value) })} />
+                </div>
+              </div>
+              <div style={styles.accountRow}>
+                <label style={styles.smallLabel}>引き落とし予定額</label>
+                <div style={styles.staticYen}>{fmtYen(r.needed)}</div>
+              </div>
+              <div style={styles.divider} />
+              {r.shortfall > 0 ? (
+                <div style={{ ...styles.statusPill, ...styles.statusPillBad }}><IconWarning size={13} />{fmtYen(r.shortfall)} 不足</div>
+              ) : (
+                <div style={{ ...styles.statusPill, ...styles.statusPillGood }}><IconCheck size={13} />{r.surplus > 0 ? `${fmtYen(r.surplus)} 余裕あり` : "ちょうど足りる"}</div>
+              )}
+              {r.cardsForAccount.length > 0 && (
+                <div style={styles.cardChips}>
+                  {r.cardsForAccount.map((c) => (
+                    <span key={c.id} style={styles.cardChip}>{c.name} · {fmtYen(c.amount)}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {accounts.length === 0 && <div style={styles.emptyState}>口座がまだありません。「口座を追加」から登録してください。</div>}
+        </div>
+      </section>
+
+      <section style={styles.section}>
+        <div style={styles.sectionHead}>
+          <h2 style={styles.sectionTitle}><IconArrowRight size={16} style={{ marginRight: 8, position: "relative", top: 2 }} />振込プラン</h2>
+        </div>
+        {transferPlan.plan.length === 0 ? (
+          <div style={styles.planEmpty}>{totalShortfall > 0 ? "口座間で移動できる余裕がありません。入金が必要です。" : "振込は不要です。すべての口座で足りています。"}</div>
+        ) : (
+          <div style={styles.planList}>
+            {transferPlan.plan.map((p, i) => (
+              <div key={i} style={styles.planRow}>
+                <span style={styles.planStep}>{String(i + 1).padStart(2, "0")}</span>
+                <span style={styles.planFrom}>{p.from}</span>
+                <IconArrowRight size={16} style={{ color: "#9a8f80", flexShrink: 0 }} />
+                <span style={styles.planTo}>{p.to}</span>
+                <span style={styles.planAmount}>{fmtYen(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {transferPlan.stillShort > 0.5 && (
+          <div style={styles.planWarning}><IconWarning size={14} />振込プランを実行しても、あと {fmtYen(transferPlan.stillShort)} が全体で不足しています。入金するか支出を見直してください。</div>
+        )}
+      </section>
+
+      <section style={styles.section}>
+        <div style={styles.sectionHead}>
+          <h2 style={styles.sectionTitle}><IconCard size={16} style={{ marginRight: 8, position: "relative", top: 2 }} />クレジットカード（今月の引き落とし額）</h2>
+          <button style={styles.ghostBtn} onClick={addCard}><IconPlus size={14} /> カードを追加</button>
+        </div>
+        <div style={styles.tableWrap}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>カード名</th>
+                <th style={styles.th}>引き落とし口座</th>
+                <th style={styles.th}>引き落とし日</th>
+                <th style={{ ...styles.th, textAlign: "right" }}>今月の金額</th>
+                <th style={styles.th}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {cards.map((c) => (
+                <tr key={c.id} style={styles.tr}>
+                  <td style={styles.td}><input style={styles.tableInput} value={c.name} onChange={(e) => updateCard(c.id, { name: e.target.value })} /></td>
+                  <td style={styles.td}>
+                    <select style={styles.tableSelect} value={c.accountId} onChange={(e) => updateCard(c.id, { accountId: e.target.value })}>
+                      <option value="">未設定</option>
+                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </td>
+                  <td style={styles.td}>
+                    <div style={styles.dayInputWrap}>
+                      <input type="number" min="1" max="31" style={styles.dayInput} value={c.dueDay}
+                        onChange={(e) => updateCard(c.id, { dueDay: e.target.value === "" ? "" : Number(e.target.value) })} />
+                      <span style={styles.daySuffix}>日</span>
+                    </div>
+                  </td>
+                  <td style={{ ...styles.td, textAlign: "right" }}>
+                    <div style={{ ...styles.yenInputWrap, justifyContent: "flex-end" }}>
+                      <span style={styles.yenPrefix}>¥</span>
+                      <input type="number" style={{ ...styles.yenInput, textAlign: "right" }} value={c.amount}
+                        onChange={(e) => updateCard(c.id, { amount: e.target.value === "" ? 0 : Number(e.target.value) })} />
+                    </div>
+                  </td>
+                  <td style={{ ...styles.td, width: 36 }}>
+                    <button style={styles.iconBtn} onClick={() => removeCard(c.id)} aria-label="カードを削除"><IconTrash size={14} /></button>
+                  </td>
+                </tr>
+              ))}
+              {cards.length === 0 && (
+                <tr><td colSpan="5" style={styles.emptyState}>カードがまだありません。「カードを追加」から登録してください。</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer style={styles.footer}>毎月、各カードの確定額を入力すると自動で再計算されます。データはこのブラウザに保存されます（サーバーには送信されません）。</footer>
+    </div>
+  );
+}
+
+const styles = {
+  page: { minHeight: "100vh", background: "#f4f1ea", fontFamily: "'Iowan Old Style','Georgia','Hiragino Mincho ProN',serif", color: "#2a2622", padding: "28px 20px 60px", maxWidth: 880, margin: "0 auto" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
+  headerLeft: { display: "flex", alignItems: "center", gap: 12 },
+  logoMark: { width: 34, height: 34, borderRadius: 8, background: "#2a2622", color: "#f4f1ea", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  eyebrow: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8a7a63", marginBottom: 2 },
+  title: { fontSize: 22, fontWeight: 600, margin: 0, lineHeight: 1.3 },
+  saveBadge: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 11, color: "#2f6b4f", transition: "opacity 0.4s ease", whiteSpace: "nowrap" },
+  hero: { background: "#2a2622", color: "#f4f1ea", borderRadius: 14, padding: "26px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 20, marginBottom: 32 },
+  heroBig: { minWidth: 240 },
+  heroLabel: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#b8ab93", marginBottom: 6 },
+  heroNumber: { fontSize: 40, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" },
+  heroSub: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 13, color: "#d8cfc0", marginTop: 8 },
+  heroStats: { display: "flex", gap: 28 },
+  heroStat: { textAlign: "right" },
+  heroStatNum: { fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" },
+  heroStatLabel: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 11, color: "#b8ab93", marginTop: 2 },
+  section: { marginBottom: 34 },
+  sectionHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, borderBottom: "1px solid #ddd4c4", paddingBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: 600, margin: 0, display: "flex", alignItems: "center" },
+  ghostBtn: { display: "flex", alignItems: "center", gap: 6, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 12.5, fontWeight: 600, background: "transparent", border: "1px solid #c9bda6", borderRadius: 7, padding: "6px 11px", cursor: "pointer", color: "#2a2622" },
+  accountGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 },
+  accountCard: { background: "#fdfcf9", border: "1px solid #d8cdba", borderRadius: 12, padding: "16px 16px 14px" },
+  accountCardTop: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  accountNameInput: { fontFamily: "'Iowan Old Style','Georgia',serif", fontSize: 15.5, fontWeight: 600, border: "none", background: "transparent", padding: "2px 0", width: "100%", color: "#2a2622" },
+  accountRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  smallLabel: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 12, color: "#8a7a63" },
+  yenInputWrap: { display: "flex", alignItems: "center", gap: 2 },
+  yenPrefix: { fontSize: 13, color: "#8a7a63" },
+  yenInput: { fontFamily: "'Iowan Old Style','Georgia',serif", fontSize: 15, fontWeight: 600, border: "none", borderBottom: "1px solid #d8cdba", background: "transparent", width: 110, padding: "2px 2px", fontVariantNumeric: "tabular-nums" },
+  staticYen: { fontSize: 15, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#5c5346" },
+  divider: { height: 1, background: "#e7dfd0", margin: "10px 0" },
+  statusPill: { display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 12.5, fontWeight: 700, padding: "5px 10px", borderRadius: 999 },
+  statusPillBad: { background: "#f4e0dc", color: "#a13d2e" },
+  statusPillGood: { background: "#e1ebe3", color: "#2f6b4f" },
+  cardChips: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 },
+  cardChip: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 11, color: "#6b6153", background: "#efe9db", borderRadius: 6, padding: "3px 8px" },
+  emptyState: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 13, color: "#8a7a63", padding: "18px 4px", gridColumn: "1 / -1", textAlign: "center" },
+  planEmpty: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 13, color: "#8a7a63", padding: "12px 2px" },
+  planList: { display: "flex", flexDirection: "column", gap: 8 },
+  planRow: { display: "flex", alignItems: "center", gap: 12, background: "#fdfcf9", border: "1px solid #d8cdba", borderRadius: 10, padding: "12px 16px" },
+  planStep: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 11, fontWeight: 700, color: "#b8ab93", width: 20 },
+  planFrom: { fontSize: 14.5, fontWeight: 600, flex: 1 },
+  planTo: { fontSize: 14.5, fontWeight: 600, flex: 1 },
+  planAmount: { fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#2a2622", minWidth: 110, textAlign: "right" },
+  planWarning: { display: "flex", alignItems: "center", gap: 8, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 12.5, color: "#a13d2e", background: "#f4e0dc", borderRadius: 8, padding: "10px 14px", marginTop: 10 },
+  tableWrap: { background: "#fdfcf9", border: "1px solid #d8cdba", borderRadius: 12, overflow: "hidden" },
+  table: { width: "100%", borderCollapse: "collapse" },
+  th: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: "#8a7a63", textAlign: "left", padding: "10px 14px", borderBottom: "1px solid #e7dfd0", background: "#f4efe4" },
+  tr: { borderBottom: "1px solid #efe9db" },
+  td: { padding: "8px 14px", verticalAlign: "middle" },
+  tableInput: { fontFamily: "'Iowan Old Style','Georgia',serif", fontSize: 14, border: "none", background: "transparent", width: "100%", padding: "4px 0" },
+  tableSelect: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 13, border: "1px solid #d8cdba", borderRadius: 6, background: "#fff", padding: "5px 6px", maxWidth: 160 },
+  dayInputWrap: { display: "flex", alignItems: "center", gap: 4 },
+  dayInput: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 13, border: "1px solid #d8cdba", borderRadius: 6, width: 48, padding: "5px 6px", textAlign: "center" },
+  daySuffix: { fontSize: 12.5, color: "#8a7a63" },
+  iconBtn: { background: "transparent", border: "none", color: "#b58f83", cursor: "pointer", padding: 4, display: "flex" },
+  footer: { fontFamily: "'Helvetica Neue', Arial, sans-serif", fontSize: 12, color: "#a89a80", textAlign: "center", marginTop: 40 },
+};
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
