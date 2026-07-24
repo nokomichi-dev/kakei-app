@@ -427,22 +427,40 @@
 
     var plan = [];
 
-    // Process givers in priority order: fully use up the top-priority free-route
-    // giver (across all eligible takers) before moving to the next-priority giver.
+    function planLeg(giver, taker, amt) {
+      var viaSameBank = giver.bank && taker.bank && giver.bank === taker.bank;
+      var viaUnconditional = giver.freeTransfer;
+      var viaLimited = !viaSameBank && !viaUnconditional &&
+        giver.freeMonthlyLimit > 0 && giver.freeUsedCount < giver.freeMonthlyLimit;
+      plan.push({ from: giver.name, to: taker.name, amount: amt, free: true, limited: viaLimited });
+      giver.remaining -= amt;
+      taker.remaining -= amt;
+    }
+
+    // Phase 1: same-bank pairs first, in giver priority order. Same-bank
+    // transfers are "free" for essentially every bank, so they're always the
+    // most natural first choice regardless of any other free-route conditions.
+    givers.forEach(function (giver) {
+      if (giver.remaining <= 0.5) return;
+      takers.forEach(function (taker) {
+        if (giver.remaining <= 0.5 || taker.remaining <= 0.5) return;
+        var sameBank = giver.bank && taker.bank && giver.bank === taker.bank;
+        if (!sameBank) return;
+        var amt = Math.min(giver.remaining, taker.remaining);
+        planLeg(giver, taker, amt);
+      });
+    });
+
+    // Phase 2: remaining shortfalls, using any other free route (unconditional
+    // free-transfer accounts, or accounts with remaining monthly free-count),
+    // still in giver priority order.
     givers.forEach(function (giver) {
       if (giver.remaining <= 0.5) return;
       takers.forEach(function (taker) {
         if (giver.remaining <= 0.5 || taker.remaining <= 0.5) return;
         if (!isFreeRoute(giver, taker)) return;
         var amt = Math.min(giver.remaining, taker.remaining);
-        // Determine why this route is free, for the "free" badge on this leg.
-        var viaSameBank = giver.bank && taker.bank && giver.bank === taker.bank;
-        var viaUnconditional = giver.freeTransfer;
-        var viaLimited = !viaSameBank && !viaUnconditional &&
-          giver.freeMonthlyLimit > 0 && giver.freeUsedCount < giver.freeMonthlyLimit;
-        plan.push({ from: giver.name, to: taker.name, amount: amt, free: true, limited: viaLimited });
-        giver.remaining -= amt;
-        taker.remaining -= amt;
+        planLeg(giver, taker, amt);
       });
     });
 
