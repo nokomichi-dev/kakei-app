@@ -85,12 +85,16 @@
   .priority-badges { display: flex; gap: 6px; flex-shrink: 0; }
   .priority-badge { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
   .priority-badge.free { background: #e1ebe3; color: #2f6b4f; }
+  .priority-badge.limited { background: #f3ecd6; color: #8a6d1f; }
+  .priority-badge.limited-out { background: #efe9db; color: #a89a80; }
   .priority-empty { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 13px; color: #8a7a63; padding: 8px 2px; }
   .account-card { background: #fdfcf9; border: 1px solid #d8cdba; border-radius: 12px; padding: 16px 16px 14px; }
   .account-card.short { border-color: #e3b3ab; }
   .account-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 6px; }
   .account-name-input { font-size: 15.5px; font-weight: 600; border: none; background: transparent; padding: 2px 0; width: 100%; color: #2a2622; }
   .account-meta-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .account-meta-row.limit-row { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #6b6153; }
+  .limit-input { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; border: 1px solid #e7dfd0; border-radius: 6px; padding: 3px 5px; background: #f9f6ef; color: #6b6153; width: 40px; text-align: center; }
   .bank-input { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; border: 1px solid #e7dfd0; border-radius: 6px; padding: 3px 7px; background: #f9f6ef; color: #6b6153; width: 110px; }
   .free-toggle { display: flex; align-items: center; gap: 5px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; color: #6b6153; cursor: pointer; user-select: none; }
   .free-toggle input { margin: 0; }
@@ -119,6 +123,7 @@
   .plan-step { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; color: #b8ab93; width: 20px; }
   .plan-from, .plan-to { font-size: 14.5px; font-weight: 600; flex: 1; min-width: 80px; }
   .plan-free-badge { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 10.5px; font-weight: 700; color: #2f6b4f; background: #e1ebe3; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+  .plan-free-badge.limited { color: #8a6d1f; background: #f3ecd6; }
   .plan-amount { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: #2a2622; min-width: 110px; text-align: right; }
   .plan-warning { display: flex; align-items: center; gap: 8px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; color: #a13d2e; background: #f4e0dc; border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
 
@@ -280,12 +285,14 @@
   var cards = (initial && initial.cards) || defaultCards;
   var recurringPayments = (initial && initial.recurringPayments) || defaultRecurring;
 
-  // migrate old data: ensure bank / freeTransfer / priority fields exist
+  // migrate old data: ensure bank / freeTransfer / priority / limited-free fields exist
   accounts = accounts.map(function (a, idx) {
     return Object.assign({ bank: a.bank || "", freeTransfer: !!a.freeTransfer }, a, {
       bank: a.bank !== undefined ? a.bank : "",
       freeTransfer: a.freeTransfer !== undefined ? a.freeTransfer : false,
-      priority: a.priority !== undefined ? a.priority : idx + 1
+      priority: a.priority !== undefined ? a.priority : idx + 1,
+      freeMonthlyLimit: a.freeMonthlyLimit !== undefined ? a.freeMonthlyLimit : 0,
+      freeUsedCount: a.freeUsedCount !== undefined ? a.freeUsedCount : 0
     });
   });
   cards = cards.map(function (c) {
@@ -381,6 +388,7 @@
       var shortfall = info.needed - Number(a.balance);
       return {
         id: a.id, name: a.name, bank: a.bank, balance: a.balance, freeTransfer: a.freeTransfer, priority: a.priority,
+        freeMonthlyLimit: Number(a.freeMonthlyLimit) || 0, freeUsedCount: Number(a.freeUsedCount) || 0,
         needed: info.needed,
         cardTotal: info.cardTotal,
         recurringTotal: info.recurringTotal,
@@ -395,16 +403,24 @@
     return rows;
   }
 
-  // free route: same bank, OR giver.freeTransfer === true
+  // free route: same bank, OR giver.freeTransfer === true, OR giver has remaining
+  // free transfers left this month under a monthly limit (e.g. "3x free to any bank")
   function isFreeRoute(giverRow, takerRow) {
     if (giverRow.freeTransfer) return true;
     if (giverRow.bank && takerRow.bank && giverRow.bank === takerRow.bank) return true;
+    if (giverRow.freeMonthlyLimit > 0 && giverRow.freeUsedCount < giverRow.freeMonthlyLimit) return true;
     return false;
   }
 
   function computeTransferPlan(rows) {
     var givers = rows.filter(function (r) { return r.surplus > 0; })
-      .map(function (r) { return { id: r.id, name: r.name, bank: r.bank, freeTransfer: r.freeTransfer, priority: r.priority || 999, remaining: r.surplus }; })
+      .map(function (r) {
+        return {
+          id: r.id, name: r.name, bank: r.bank, freeTransfer: r.freeTransfer,
+          freeMonthlyLimit: r.freeMonthlyLimit, freeUsedCount: r.freeUsedCount,
+          priority: r.priority || 999, remaining: r.surplus
+        };
+      })
       .sort(function (a, b) { return a.priority - b.priority; }); // lower number = higher priority = used first
     var takers = rows.filter(function (r) { return r.shortfall > 0; })
       .map(function (r) { return { id: r.id, name: r.name, bank: r.bank, remaining: r.shortfall }; });
@@ -419,7 +435,12 @@
         if (giver.remaining <= 0.5 || taker.remaining <= 0.5) return;
         if (!isFreeRoute(giver, taker)) return;
         var amt = Math.min(giver.remaining, taker.remaining);
-        plan.push({ from: giver.name, to: taker.name, amount: amt, free: true });
+        // Determine why this route is free, for the "free" badge on this leg.
+        var viaSameBank = giver.bank && taker.bank && giver.bank === taker.bank;
+        var viaUnconditional = giver.freeTransfer;
+        var viaLimited = !viaSameBank && !viaUnconditional &&
+          giver.freeMonthlyLimit > 0 && giver.freeUsedCount < giver.freeMonthlyLimit;
+        plan.push({ from: giver.name, to: taker.name, amount: amt, free: true, limited: viaLimited });
         giver.remaining -= amt;
         taker.remaining -= amt;
       });
@@ -458,7 +479,7 @@
   }
   function addAccount() {
     var maxPriority = accounts.reduce(function (m, a) { return Math.max(m, a.priority || 0); }, 0);
-    accounts = accounts.concat([{ id: uid("acc"), name: "新しい口座", bank: "", balance: 0, freeTransfer: false, priority: maxPriority + 1 }]);
+    accounts = accounts.concat([{ id: uid("acc"), name: "新しい口座", bank: "", balance: 0, freeTransfer: false, priority: maxPriority + 1, freeMonthlyLimit: 0, freeUsedCount: 0 }]);
     persist();
     render();
   }
@@ -560,8 +581,14 @@
     } else {
       priorityList.innerHTML = orderedAccounts.map(function (a, idx) {
         var badges = "";
+        var limit = Number(a.freeMonthlyLimit) || 0;
+        var used = Number(a.freeUsedCount) || 0;
         if (a.freeTransfer) badges += '<span class="priority-badge free">どこでも無料</span>';
-        else if (a.bank) badges += '<span class="priority-badge free">' + escapeHtml(a.bank) + '内無料</span>';
+        else if (limit > 0) {
+          var remain = Math.max(0, limit - used);
+          badges += '<span class="priority-badge' + (remain > 0 ? ' free limited' : ' limited-out') + '">他行無料 残' + remain + '/' + limit + '回</span>';
+        }
+        if (a.bank) badges += '<span class="priority-badge free">' + escapeHtml(a.bank) + '内無料</span>';
         return (
           '<div class="priority-item" data-id="' + a.id + '">' +
             '<span class="priority-handle">\u2630</span>' +
@@ -607,6 +634,13 @@
               '<input class="bank-input" data-role="acc-bank" data-id="' + r.id + '" placeholder="銀行名" value="' + escapeHtml(r.bank || "") + '" />' +
               '<label class="free-toggle"><input type="checkbox" data-role="acc-free" data-id="' + r.id + '"' + (r.freeTransfer ? ' checked' : '') + ' />振込手数料無料</label>' +
             '</div>' +
+            '<div class="account-meta-row limit-row">' +
+              '<label class="small-label">他行宛て無料</label>' +
+              '<input type="number" min="0" class="limit-input" data-role="acc-free-limit" data-id="' + r.id + '" value="' + r.freeMonthlyLimit + '" />' +
+              '<span class="small-label">回/月 \u00b7 今月使用</span>' +
+              '<input type="number" min="0" class="limit-input" data-role="acc-free-used" data-id="' + r.id + '" value="' + r.freeUsedCount + '" />' +
+              '<span class="small-label">回</span>' +
+            '</div>' +
             '<div class="account-row"><label class="small-label">現在残高</label>' +
               '<div class="yen-wrap"><span class="yen-prefix">\u00a5</span>' +
               '<input type="number" class="yen-input" data-role="acc-balance" data-id="' + r.id + '" value="' + r.balance + '" /></div>' +
@@ -639,12 +673,15 @@
         '</div>';
     } else {
       html += '<div class="plan-list">' + transferPlan.plan.map(function (p, i) {
+        var badge = p.limited
+          ? '<span class="plan-free-badge limited">回数無料枠</span>'
+          : '<span class="plan-free-badge">手数料無料</span>';
         return '<div class="plan-row">' +
           '<span class="plan-step">' + String(i + 1).padStart(2, "0") + '</span>' +
           '<span class="plan-from">' + escapeHtml(p.from) + '</span>' +
           '<span>\u2192</span>' +
           '<span class="plan-to">' + escapeHtml(p.to) + '</span>' +
-          '<span class="plan-free-badge">手数料無料</span>' +
+          badge +
           '<span class="plan-amount">' + fmtYen(p.amount) + '</span>' +
         '</div>';
       }).join("") + '</div>';
@@ -718,6 +755,14 @@
     });
     document.querySelectorAll('[data-role="acc-free"]').forEach(function (el) {
       el.onchange = function () { updateAccount(el.dataset.id, { freeTransfer: el.checked }); };
+    });
+    document.querySelectorAll('[data-role="acc-free-limit"]').forEach(function (el) {
+      el.oninput = function () { updateAccount(el.dataset.id, { freeMonthlyLimit: el.value === "" ? 0 : Number(el.value) }, false); };
+      el.onblur = function () { render(); };
+    });
+    document.querySelectorAll('[data-role="acc-free-used"]').forEach(function (el) {
+      el.oninput = function () { updateAccount(el.dataset.id, { freeUsedCount: el.value === "" ? 0 : Number(el.value) }, false); };
+      el.onblur = function () { render(); };
     });
     document.querySelectorAll('[data-role="acc-balance"]').forEach(function (el) {
       el.oninput = function () { updateAccount(el.dataset.id, { balance: el.value === "" ? 0 : Number(el.value) }, false); };
