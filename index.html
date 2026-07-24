@@ -74,12 +74,11 @@
   .priority-item {
     display: flex; align-items: center; gap: 12px;
     background: #fdfcf9; border: 1px solid #d8cdba; border-radius: 10px;
-    padding: 12px 14px; cursor: grab;
-    touch-action: none;
+    padding: 12px 14px;
   }
   .priority-item.dragging { opacity: 0.4; }
   .priority-item.drag-over { border-color: #8a7a63; border-style: dashed; }
-  .priority-handle { font-size: 15px; color: #b8ab93; line-height: 1; user-select: none; flex-shrink: 0; }
+  .priority-handle { font-size: 20px; color: #b8ab93; line-height: 1; user-select: none; flex-shrink: 0; padding: 8px; margin: -8px; touch-action: none; cursor: grab; }
   .priority-rank { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; color: #b8ab93; width: 18px; flex-shrink: 0; }
   .priority-name { font-size: 14.5px; font-weight: 600; flex: 1; }
   .priority-badges { display: flex; gap: 6px; flex-shrink: 0; }
@@ -827,34 +826,28 @@
     bindPriorityDrag();
   }
 
-  // Touch/pointer-based reordering (works reliably on iOS Safari, unlike HTML5
-  // drag-and-drop which iOS Safari does not support for arbitrary elements).
+  // Touch/pointer-based reordering, bound to the drag handle (☰) only, so it
+  // doesn't fight with the page's normal vertical scroll gesture on iOS Safari.
   function bindPriorityDrag() {
     var list = document.getElementById("priorityList");
     if (!list) return;
-    var items = Array.prototype.slice.call(list.querySelectorAll(".priority-item"));
+    var handles = Array.prototype.slice.call(list.querySelectorAll(".priority-handle"));
 
-    items.forEach(function (item) {
-      var startY = 0;
-      var dragging = false;
+    handles.forEach(function (handle) {
+      var item = handle.closest(".priority-item");
+      if (!item) return;
 
-      item.addEventListener("pointerdown", function (e) {
-        startY = e.clientY;
-        dragging = false;
-        item.setPointerCapture(e.pointerId);
+      handle.addEventListener("pointerdown", function (e) {
+        e.preventDefault();
+        var startY = e.clientY;
+        var dragging = true;
+        item.classList.add("dragging");
 
         function onMove(ev) {
-          var dy = ev.clientY - startY;
-          if (Math.abs(dy) > 6) {
-            dragging = true;
-            item.classList.add("dragging");
-          }
-          if (!dragging) return;
-
-          // find the item currently under the pointer and swap positions in the DOM
+          ev.preventDefault();
           var el = document.elementFromPoint(ev.clientX, ev.clientY);
           var target = el && el.closest(".priority-item");
-          if (target && target !== item) {
+          if (target && target !== item && list.contains(target)) {
             var rect = target.getBoundingClientRect();
             var before = ev.clientY < rect.top + rect.height / 2;
             list.insertBefore(item, before ? target : target.nextSibling);
@@ -862,16 +855,17 @@
         }
 
         function onUp() {
+          dragging = false;
           item.classList.remove("dragging");
-          item.removeEventListener("pointermove", onMove);
-          item.removeEventListener("pointerup", onUp);
-          item.removeEventListener("pointercancel", onUp);
-          if (dragging) commitPriorityOrder();
+          document.removeEventListener("pointermove", onMove);
+          document.removeEventListener("pointerup", onUp);
+          document.removeEventListener("pointercancel", onUp);
+          commitPriorityOrder();
         }
 
-        item.addEventListener("pointermove", onMove);
-        item.addEventListener("pointerup", onUp);
-        item.addEventListener("pointercancel", onUp);
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
+        document.addEventListener("pointercancel", onUp);
       });
     });
   }
