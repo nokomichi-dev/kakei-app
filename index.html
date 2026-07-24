@@ -426,12 +426,20 @@
 
     var plan = [];
 
+    function roundUpTo1000(n) {
+      return Math.ceil(n / 1000) * 1000;
+    }
+
     function planLeg(giver, taker, amt) {
       var viaSameBank = giver.bank && taker.bank && giver.bank === taker.bank;
       var viaUnconditional = giver.freeTransfer;
       var viaLimited = !viaSameBank && !viaUnconditional &&
         giver.freeMonthlyLimit > 0 && giver.freeUsedCount < giver.freeMonthlyLimit;
-      plan.push({ from: giver.name, to: taker.name, amount: amt, free: true, limited: viaLimited });
+      // Internal bookkeeping (giver/taker remaining) uses the exact amount so
+      // shortfall/surplus tracking across legs stays accurate. The amount
+      // actually shown to the user (and meant to be transferred) is rounded
+      // up to the nearest ¥1,000 for easier bank-app entry.
+      plan.push({ from: giver.name, to: taker.name, amount: roundUpTo1000(amt), free: true, limited: viaLimited });
       giver.remaining -= amt;
       taker.remaining -= amt;
     }
