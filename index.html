@@ -69,6 +69,23 @@
   .ghost-btn { display: flex; align-items: center; gap: 6px; font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; font-weight: 600; background: transparent; border: 1px solid #c9bda6; border-radius: 7px; padding: 6px 11px; cursor: pointer; color: #2a2622; }
 
   .account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+
+  .priority-list { display: flex; flex-direction: column; gap: 8px; }
+  .priority-item {
+    display: flex; align-items: center; gap: 12px;
+    background: #fdfcf9; border: 1px solid #d8cdba; border-radius: 10px;
+    padding: 12px 14px; cursor: grab;
+    touch-action: none;
+  }
+  .priority-item.dragging { opacity: 0.4; }
+  .priority-item.drag-over { border-color: #8a7a63; border-style: dashed; }
+  .priority-handle { font-size: 15px; color: #b8ab93; line-height: 1; user-select: none; flex-shrink: 0; }
+  .priority-rank { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; color: #b8ab93; width: 18px; flex-shrink: 0; }
+  .priority-name { font-size: 14.5px; font-weight: 600; flex: 1; }
+  .priority-badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .priority-badge { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .priority-badge.free { background: #e1ebe3; color: #2f6b4f; }
+  .priority-empty { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 13px; color: #8a7a63; padding: 8px 2px; }
   .account-card { background: #fdfcf9; border: 1px solid #d8cdba; border-radius: 12px; padding: 16px 16px 14px; }
   .account-card.short { border-color: #e3b3ab; }
   .account-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 6px; }
@@ -150,6 +167,16 @@
 </section>
 
 <div id="deadlineArea"></div>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <h2 class="section-title">🔀 振込元の優先順位</h2>
+      <div class="section-hint">余裕がある口座が複数ある場合、上にある口座から優先的に振込元として使います。ドラッグで並べ替えできます。</div>
+    </div>
+  </div>
+  <div class="priority-list" id="priorityList"></div>
+</section>
 
 <section class="section">
   <div class="section-head">
@@ -237,8 +264,8 @@
   }
 
   var defaultAccounts = [
-    { id: "acc1", name: "三菱UFJ銀行", bank: "三菱UFJ銀行", balance: 150000, freeTransfer: false },
-    { id: "acc2", name: "ゆうちょ銀行", bank: "ゆうちょ銀行", balance: 80000, freeTransfer: false }
+    { id: "acc1", name: "三菱UFJ銀行", bank: "三菱UFJ銀行", balance: 150000, freeTransfer: false, priority: 1 },
+    { id: "acc2", name: "ゆうちょ銀行", bank: "ゆうちょ銀行", balance: 80000, freeTransfer: false, priority: 2 }
   ];
   var defaultCards = [
     { id: "card1", name: "楽天カード", accountId: "acc1", dueDay: 27, amount: 62000 },
@@ -253,11 +280,12 @@
   var cards = (initial && initial.cards) || defaultCards;
   var recurringPayments = (initial && initial.recurringPayments) || defaultRecurring;
 
-  // migrate old data: ensure bank / freeTransfer fields exist
-  accounts = accounts.map(function (a) {
+  // migrate old data: ensure bank / freeTransfer / priority fields exist
+  accounts = accounts.map(function (a, idx) {
     return Object.assign({ bank: a.bank || "", freeTransfer: !!a.freeTransfer }, a, {
       bank: a.bank !== undefined ? a.bank : "",
-      freeTransfer: a.freeTransfer !== undefined ? a.freeTransfer : false
+      freeTransfer: a.freeTransfer !== undefined ? a.freeTransfer : false,
+      priority: a.priority !== undefined ? a.priority : idx + 1
     });
   });
   cards = cards.map(function (c) {
@@ -352,7 +380,7 @@
       var info = needs[a.id] || { needed: 0, cardTotal: 0, recurringTotal: 0, cards: [], recurring: [], earliestDue: null };
       var shortfall = info.needed - Number(a.balance);
       return {
-        id: a.id, name: a.name, bank: a.bank, balance: a.balance, freeTransfer: a.freeTransfer,
+        id: a.id, name: a.name, bank: a.bank, balance: a.balance, freeTransfer: a.freeTransfer, priority: a.priority,
         needed: info.needed,
         cardTotal: info.cardTotal,
         recurringTotal: info.recurringTotal,
@@ -376,28 +404,25 @@
 
   function computeTransferPlan(rows) {
     var givers = rows.filter(function (r) { return r.surplus > 0; })
-      .map(function (r) { return { id: r.id, name: r.name, bank: r.bank, freeTransfer: r.freeTransfer, remaining: r.surplus }; });
+      .map(function (r) { return { id: r.id, name: r.name, bank: r.bank, freeTransfer: r.freeTransfer, priority: r.priority || 999, remaining: r.surplus }; })
+      .sort(function (a, b) { return a.priority - b.priority; }); // lower number = higher priority = used first
     var takers = rows.filter(function (r) { return r.shortfall > 0; })
       .map(function (r) { return { id: r.id, name: r.name, bank: r.bank, remaining: r.shortfall }; });
 
     var plan = [];
 
-    takers.forEach(function (taker) {
-      var need = taker.remaining;
-      if (need <= 0.5) return;
-      // pass 1: only free-route givers, largest remaining first for fewer hops
-      var eligible = givers
-        .filter(function (g) { return g.remaining > 0.5 && isFreeRoute(g, taker); })
-        .sort(function (a, b) { return b.remaining - a.remaining; });
-
-      eligible.forEach(function (giver) {
-        if (need <= 0.5) return;
-        var amt = Math.min(giver.remaining, need);
+    // Process givers in priority order: fully use up the top-priority free-route
+    // giver (across all eligible takers) before moving to the next-priority giver.
+    givers.forEach(function (giver) {
+      if (giver.remaining <= 0.5) return;
+      takers.forEach(function (taker) {
+        if (giver.remaining <= 0.5 || taker.remaining <= 0.5) return;
+        if (!isFreeRoute(giver, taker)) return;
+        var amt = Math.min(giver.remaining, taker.remaining);
         plan.push({ from: giver.name, to: taker.name, amount: amt, free: true });
         giver.remaining -= amt;
-        need -= amt;
+        taker.remaining -= amt;
       });
-      taker.remaining = need;
     });
 
     var stillShort = takers.reduce(function (sum, t) {
@@ -432,7 +457,8 @@
     render();
   }
   function addAccount() {
-    accounts = accounts.concat([{ id: uid("acc"), name: "新しい口座", bank: "", balance: 0, freeTransfer: false }]);
+    var maxPriority = accounts.reduce(function (m, a) { return Math.max(m, a.priority || 0); }, 0);
+    accounts = accounts.concat([{ id: uid("acc"), name: "新しい口座", bank: "", balance: 0, freeTransfer: false, priority: maxPriority + 1 }]);
     persist();
     render();
   }
@@ -524,6 +550,27 @@
             '<div class="deadline-fulldate">' + fmtDate(deadline) + ' 締切</div>' +
           '</div>' +
         '</div>';
+    }
+
+    // priority list (ordered by accounts' priority field, ascending = highest priority first)
+    var priorityList = document.getElementById("priorityList");
+    var orderedAccounts = accounts.slice().sort(function (a, b) { return (a.priority || 999) - (b.priority || 999); });
+    if (orderedAccounts.length === 0) {
+      priorityList.innerHTML = '<div class="priority-empty">口座がまだありません。</div>';
+    } else {
+      priorityList.innerHTML = orderedAccounts.map(function (a, idx) {
+        var badges = "";
+        if (a.freeTransfer) badges += '<span class="priority-badge free">どこでも無料</span>';
+        else if (a.bank) badges += '<span class="priority-badge free">' + escapeHtml(a.bank) + '内無料</span>';
+        return (
+          '<div class="priority-item" data-id="' + a.id + '">' +
+            '<span class="priority-handle">\u2630</span>' +
+            '<span class="priority-rank">' + (idx + 1) + '</span>' +
+            '<span class="priority-name">' + escapeHtml(a.name) + '</span>' +
+            '<span class="priority-badges">' + badges + '</span>' +
+          '</div>'
+        );
+      }).join("");
     }
 
     // account grid
@@ -713,6 +760,68 @@
     document.querySelectorAll('[data-role="rec-remove"]').forEach(function (el) {
       el.onclick = function () { removeRecurring(el.dataset.id); };
     });
+
+    bindPriorityDrag();
+  }
+
+  // Touch/pointer-based reordering (works reliably on iOS Safari, unlike HTML5
+  // drag-and-drop which iOS Safari does not support for arbitrary elements).
+  function bindPriorityDrag() {
+    var list = document.getElementById("priorityList");
+    if (!list) return;
+    var items = Array.prototype.slice.call(list.querySelectorAll(".priority-item"));
+
+    items.forEach(function (item) {
+      var startY = 0;
+      var dragging = false;
+
+      item.addEventListener("pointerdown", function (e) {
+        startY = e.clientY;
+        dragging = false;
+        item.setPointerCapture(e.pointerId);
+
+        function onMove(ev) {
+          var dy = ev.clientY - startY;
+          if (Math.abs(dy) > 6) {
+            dragging = true;
+            item.classList.add("dragging");
+          }
+          if (!dragging) return;
+
+          // find the item currently under the pointer and swap positions in the DOM
+          var el = document.elementFromPoint(ev.clientX, ev.clientY);
+          var target = el && el.closest(".priority-item");
+          if (target && target !== item) {
+            var rect = target.getBoundingClientRect();
+            var before = ev.clientY < rect.top + rect.height / 2;
+            list.insertBefore(item, before ? target : target.nextSibling);
+          }
+        }
+
+        function onUp() {
+          item.classList.remove("dragging");
+          item.removeEventListener("pointermove", onMove);
+          item.removeEventListener("pointerup", onUp);
+          item.removeEventListener("pointercancel", onUp);
+          if (dragging) commitPriorityOrder();
+        }
+
+        item.addEventListener("pointermove", onMove);
+        item.addEventListener("pointerup", onUp);
+        item.addEventListener("pointercancel", onUp);
+      });
+    });
+  }
+
+  function commitPriorityOrder() {
+    var list = document.getElementById("priorityList");
+    var ids = Array.prototype.slice.call(list.querySelectorAll(".priority-item")).map(function (el) { return el.dataset.id; });
+    accounts = accounts.map(function (a) {
+      var idx = ids.indexOf(a.id);
+      return idx === -1 ? a : Object.assign({}, a, { priority: idx + 1 });
+    });
+    persist();
+    render();
   }
 
   document.getElementById("addAccountBtn").onclick = addAccount;
